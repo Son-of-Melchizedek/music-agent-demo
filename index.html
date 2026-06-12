@@ -769,8 +769,170 @@ body::before {
 
 <div class="footer">Prepared by Sharon Lijo · brave.sharon@gmail.com</div>
 
-<script>
-// Waveform bars
+<script>// === SONGSCRIBE AUDIO ENGINE ===
+// Lo-fi R&B beat synthesizer using Web Audio API
+// 82 BPM, Cm chord progression, vinyl crackle, kick + hi-hat
+
+let audioCtx = null;
+let playing = false;
+let animFrame = null;
+
+const chords = [
+  [261.6, 311.1, 392.0],
+  [220.0, 261.6, 329.6],
+  [246.9, 293.7, 370.0],
+  [196.0, 233.1, 293.7],
+];
+const bass = [130.8, 103.8, 116.5, 98.0];
+const BPM = 82;
+const BEAT = 60 / BPM;
+const BARS = 8;
+
+function createNoise(ctx, duration) {
+  const sr = ctx.sampleRate;
+  const len = sr * duration;
+  const buf = ctx.createBuffer(1, len, sr);
+  const data = buf.getChannelData(0);
+  for (let i = 0; i < len; i++) data[i] = Math.random() * 2 - 1;
+  const src = ctx.createBufferSource();
+  src.buffer = buf;
+  src.loop = true;
+  return src;
+}
+
+function playTrack() {
+  audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+  const analyser = audioCtx.createAnalyser();
+  analyser.fftSize = 256;
+  analyser.connect(audioCtx.destination);
+
+  const master = audioCtx.createGain();
+  master.gain.value = 0.35;
+  master.connect(analyser);
+
+  const lpf = audioCtx.createBiquadFilter();
+  lpf.type = 'lowpass';
+  lpf.frequency.value = 1200;
+  lpf.Q.value = 0.7;
+  lpf.connect(master);
+
+  const noise = createNoise(audioCtx, 4);
+  const noiseGain = audioCtx.createGain();
+  noiseGain.gain.value = 0.02;
+  const noiseHpf = audioCtx.createBiquadFilter();
+  noiseHpf.type = 'highpass';
+  noiseHpf.frequency.value = 4000;
+  noise.connect(noiseHpf);
+  noiseHpf.connect(noiseGain);
+  noiseGain.connect(master);
+  noise.start();
+
+  const now = audioCtx.currentTime;
+
+  for (let bar = 0; bar < BARS; bar++) {
+    for (let beat = 0; beat < 4; beat++) {
+      const t = now + (bar * 4 + beat) * BEAT;
+      if (beat === 0 || beat === 2) {
+        const kick = audioCtx.createOscillator();
+        kick.type = 'sine';
+        kick.frequency.setValueAtTime(150, t);
+        kick.frequency.exponentialRampToValueAtTime(40, t + 0.12);
+        const kG = audioCtx.createGain();
+        kG.gain.setValueAtTime(0.6, t);
+        kG.gain.exponentialRampToValueAtTime(0.001, t + 0.25);
+        kick.connect(kG); kG.connect(master);
+        kick.start(t); kick.stop(t + 0.25);
+      }
+      const hat = createNoise(audioCtx, 0.05);
+      const hG = audioCtx.createGain();
+      hG.gain.setValueAtTime(beat % 2 === 1 ? 0.08 : 0.04, t);
+      hG.gain.exponentialRampToValueAtTime(0.001, t + 0.06);
+      const hH = audioCtx.createBiquadFilter();
+      hH.type = 'highpass'; hH.frequency.value = 8000;
+      hat.connect(hH); hH.connect(hG); hG.connect(master);
+      hat.start(t);
+    }
+  }
+
+  for (let bar = 0; bar < BARS; bar++) {
+    const chord = chords[bar % chords.length];
+    const t = now + bar * 4 * BEAT;
+    chord.forEach(freq => {
+      const osc = audioCtx.createOscillator();
+      osc.type = 'triangle';
+      osc.frequency.value = freq;
+      osc.detune.value = (Math.random() - 0.5) * 8;
+      const g = audioCtx.createGain();
+      g.gain.setValueAtTime(0, t);
+      g.gain.linearRampToValueAtTime(0.12, t + 0.05);
+      g.gain.exponentialRampToValueAtTime(0.001, t + BEAT * 3.5);
+      osc.connect(g); g.connect(lpf);
+      osc.start(t); osc.stop(t + BEAT * 4);
+    });
+  }
+
+  for (let bar = 0; bar < BARS; bar++) {
+    const freq = bass[bar % bass.length];
+    const t = now + bar * 4 * BEAT;
+    for (let n = 0; n < 4; n++) {
+      const nt = t + n * BEAT;
+      const osc = audioCtx.createOscillator();
+      osc.type = 'sine';
+      osc.frequency.value = freq;
+      const g = audioCtx.createGain();
+      g.gain.setValueAtTime(0.2, nt);
+      g.gain.exponentialRampToValueAtTime(0.001, nt + BEAT * 0.8);
+      osc.connect(g); g.connect(master);
+      osc.start(nt); osc.stop(nt + BEAT);
+    }
+  }
+
+  const bars = document.querySelectorAll('.wave-bar');
+  const bufLen = analyser.frequencyBinCount;
+  const dataArray = new Uint8Array(bufLen);
+
+  function drawVis() {
+    analyser.getByteFrequencyData(dataArray);
+    const step = Math.floor(bufLen / bars.length);
+    bars.forEach((bar, i) => {
+      const val = dataArray[i * step] || 0;
+      bar.style.height = Math.max(4, (val / 255) * 52) + 'px';
+      bar.style.animationPlayState = 'paused';
+      bar.style.opacity = 0.4 + (val / 255) * 0.6;
+    });
+    if (playing) animFrame = requestAnimationFrame(drawVis);
+  }
+  drawVis();
+
+  setTimeout(() => { if (playing) togglePlay(); }, BARS * 4 * BEAT * 1000 + 200);
+}
+
+function stopTrack() {
+  if (audioCtx) { audioCtx.close(); audioCtx = null; }
+  if (animFrame) cancelAnimationFrame(animFrame);
+  document.querySelectorAll('.wave-bar').forEach(b => {
+    b.style.height = '';
+    b.style.animationPlayState = 'paused';
+    b.style.opacity = '0.6';
+  });
+}
+
+function togglePlay() {
+  playing = !playing;
+  const btn = document.getElementById('playBtn');
+  if (playing) {
+    btn.innerHTML = '<svg viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="4" width="4" height="16"/><rect x="14" y="4" width="4" height="16"/></svg>';
+    btn.style.boxShadow = '0 0 30px rgba(167,139,250,0.6)';
+    playTrack();
+  } else {
+    btn.innerHTML = '<svg viewBox="0 0 24 24" fill="currentColor"><polygon points="6,3 20,12 6,21"/></svg>';
+    btn.style.boxShadow = '0 4px 16px rgba(167,139,250,0.3)';
+    stopTrack();
+  }
+}
+
+
+// Generate static wave bars
 const wc = document.getElementById('waveBars');
 for (let i = 0; i < 80; i++) {
   const bar = document.createElement('div');
@@ -779,27 +941,14 @@ for (let i = 0; i < 80; i++) {
   bar.style.animationDelay = (i * 0.04) + 's';
   wc.appendChild(bar);
 }
+document.querySelectorAll('.wave-bar').forEach(b => b.style.animationPlayState = 'paused');
 
-// Scroll reveal with stagger
+// Scroll reveal
 const obs = new IntersectionObserver((entries) => {
   entries.forEach(e => { if (e.isIntersecting) e.target.classList.add('visible'); });
 }, { threshold: 0.1 });
 document.querySelectorAll('.reveal').forEach(el => obs.observe(el));
 document.getElementById('hero').classList.add('visible');
-
-// Play toggle
-let playing = false;
-function togglePlay() {
-  playing = !playing;
-  document.querySelectorAll('.wave-bar').forEach(b => b.style.animationPlayState = playing ? 'running' : 'paused');
-  const btn = document.getElementById('playBtn');
-  btn.innerHTML = playing
-    ? '<svg viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="4" width="4" height="16"/><rect x="14" y="4" width="4" height="16"/></svg>'
-    : '<svg viewBox="0 0 24 24" fill="currentColor"><polygon points="6,3 20,12 6,21"/></svg>';
-  if (playing) btn.style.boxShadow = '0 0 30px rgba(167,139,250,0.6)';
-  else btn.style.boxShadow = '0 4px 16px rgba(167,139,250,0.3)';
-}
-document.querySelectorAll('.wave-bar').forEach(b => b.style.animationPlayState = 'paused');
 </script>
 
 </body>
