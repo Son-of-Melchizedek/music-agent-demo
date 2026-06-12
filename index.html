@@ -1,0 +1,556 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AI Music Agent — Demo</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
+<style>
+/* Hallmark · pre-emit critique: P5 H5 E5 S5 R5 V5 */
+/* Macrostructure: Workbench · Direction: High-End Agency */
+/* Design Read: Creative tool demo for independent musicians,
+   dark premium language, Space Grotesk display + Inter body,
+   purple-to-warm gradient accent, interactive feel */
+
+:root {
+  --bg: #0a0a0f;
+  --surface: #13131a;
+  --surface-raised: #1a1a24;
+  --ink: #f0ede6;
+  --ink-dim: rgba(240,237,230,0.6);
+  --ink-mut: rgba(240,237,230,0.35);
+  --accent: #a78bfa;
+  --accent-warm: #f472b6;
+  --accent-glow: rgba(167,139,250,0.15);
+  --success: #34d399;
+  --border: rgba(240,237,230,0.08);
+  --border-accent: rgba(167,139,250,0.25);
+  --radius: 8px;
+  --font-display: 'Space Grotesk', sans-serif;
+  --font-body: 'Inter', -apple-system, sans-serif;
+}
+
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html { overflow-x: clip; scroll-behavior: smooth; }
+body {
+  font-family: var(--font-body);
+  background: var(--bg);
+  color: var(--ink);
+  line-height: 1.6;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* === ANIMATIONS === */
+.reveal { opacity: 0; transform: translateY(16px); transition: opacity 0.6s ease, transform 0.6s ease; }
+.reveal.visible { opacity: 1; transform: translateY(0); }
+@keyframes pulse { 0%, 100% { opacity: 0.4; } 50% { opacity: 1; } }
+@keyframes waveform { 0%, 100% { height: 4px; } 50% { height: var(--h, 20px); } }
+@media (prefers-reduced-motion: reduce) {
+  .reveal { opacity: 1; transform: none; transition: none; }
+  .wave-bar { animation: none !important; height: 8px !important; }
+}
+
+/* === TOPBAR === */
+.topbar {
+  padding: 10px 20px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 11px;
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+  border-bottom: 1px solid var(--border);
+}
+.topbar .brand {
+  font-family: var(--font-display);
+  font-weight: 700;
+  color: var(--accent);
+}
+.topbar .for { color: var(--ink-mut); }
+
+/* === HERO === */
+.hero {
+  max-width: 640px;
+  margin: 0 auto;
+  padding: 64px 24px 48px;
+  text-align: center;
+}
+.hero-tag {
+  display: inline-block;
+  padding: 4px 14px;
+  border: 1px solid var(--border-accent);
+  border-radius: 100px;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--accent);
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  margin-bottom: 20px;
+}
+.hero h1 {
+  font-family: var(--font-display);
+  font-size: clamp(28px, 5vw, 44px);
+  font-weight: 700;
+  line-height: 1.1;
+  margin-bottom: 16px;
+  letter-spacing: -0.5px;
+}
+.hero h1 .gradient {
+  background: linear-gradient(135deg, var(--accent), var(--accent-warm));
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+.hero p {
+  font-size: 16px;
+  color: var(--ink-dim);
+  max-width: 460px;
+  margin: 0 auto;
+  line-height: 1.7;
+}
+
+/* === WAVEFORM VISUALIZER === */
+.visualizer {
+  max-width: 640px;
+  margin: 0 auto;
+  padding: 24px 24px 40px;
+}
+.wave-container {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 24px;
+  display: flex;
+  align-items: center;
+  gap: 20px;
+}
+.wave-bars {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  height: 48px;
+  flex: 1;
+}
+.wave-bar {
+  width: 4px;
+  background: var(--accent);
+  border-radius: 2px;
+  animation: waveform 1.2s ease-in-out infinite;
+  opacity: 0.7;
+}
+.wave-bar:nth-child(odd) { background: var(--accent-warm); }
+.wave-info { flex-shrink: 0; text-align: right; }
+.wave-info .title {
+  font-family: var(--font-display);
+  font-size: 14px;
+  font-weight: 600;
+  margin-bottom: 2px;
+}
+.wave-info .meta {
+  font-size: 11px;
+  color: var(--ink-mut);
+}
+.wave-controls {
+  display: flex;
+  gap: 12px;
+  margin-top: 16px;
+  justify-content: center;
+}
+.wave-btn {
+  padding: 8px 20px;
+  border-radius: var(--radius);
+  font-size: 12px;
+  font-weight: 600;
+  border: 1px solid var(--border);
+  background: transparent;
+  color: var(--ink);
+  cursor: pointer;
+  transition: all 0.2s;
+  font-family: var(--font-body);
+}
+.wave-btn:hover { border-color: var(--accent); color: var(--accent); }
+.wave-btn.primary {
+  background: linear-gradient(135deg, var(--accent), var(--accent-warm));
+  color: #fff;
+  border: none;
+}
+.wave-btn.primary:hover { opacity: 0.9; }
+
+/* === AGENT DEMO CHAT === */
+.demo-section {
+  max-width: 640px;
+  margin: 0 auto;
+  padding: 0 24px 48px;
+}
+.demo-label {
+  font-size: 11px;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  color: var(--ink-mut);
+  font-weight: 600;
+  margin-bottom: 16px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid var(--border);
+}
+.chat-window {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  overflow: hidden;
+}
+.chat-header {
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.chat-dot {
+  width: 8px; height: 8px;
+  border-radius: 50%;
+  background: var(--success);
+}
+.chat-header span {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--ink-dim);
+}
+.chat-body {
+  padding: 20px;
+  max-height: 500px;
+  overflow-y: auto;
+}
+.msg {
+  margin-bottom: 16px;
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+}
+.msg-avatar {
+  width: 28px; height: 28px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, var(--accent), var(--accent-warm));
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+  flex-shrink: 0;
+}
+.msg-user .msg-avatar { background: var(--surface-raised); border: 1px solid var(--border); }
+.msg-content {
+  background: var(--surface-raised);
+  padding: 12px 16px;
+  border-radius: var(--radius);
+  font-size: 13px;
+  line-height: 1.6;
+  color: var(--ink-dim);
+  max-width: 90%;
+}
+.msg-content strong { color: var(--ink); }
+.msg-content .highlight {
+  color: var(--accent);
+  font-weight: 600;
+}
+.msg-content ul {
+  margin: 8px 0;
+  padding-left: 16px;
+}
+.msg-content li {
+  margin-bottom: 4px;
+}
+.msg-content .plan-card {
+  background: rgba(167,139,250,0.08);
+  border: 1px solid var(--border-accent);
+  border-radius: 6px;
+  padding: 12px;
+  margin: 10px 0;
+}
+.msg-content .plan-card h4 {
+  font-family: var(--font-display);
+  font-size: 13px;
+  color: var(--accent);
+  margin-bottom: 6px;
+}
+.msg-content .plan-card p {
+  font-size: 12px;
+  color: var(--ink-mut);
+  margin-bottom: 4px;
+}
+.msg-content .tag-row {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+  margin-top: 8px;
+}
+.msg-content .tag {
+  padding: 2px 8px;
+  border-radius: 100px;
+  font-size: 10px;
+  font-weight: 600;
+  border: 1px solid var(--border-accent);
+  color: var(--accent);
+}
+
+/* === CAPABILITIES === */
+.caps {
+  max-width: 640px;
+  margin: 0 auto;
+  padding: 0 24px 48px;
+}
+.cap-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 12px;
+}
+.cap-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 20px;
+  transition: border-color 0.2s;
+}
+.cap-card:hover { border-color: var(--border-accent); }
+.cap-icon {
+  font-size: 24px;
+  margin-bottom: 10px;
+}
+.cap-card h4 {
+  font-family: var(--font-display);
+  font-size: 14px;
+  font-weight: 600;
+  margin-bottom: 4px;
+}
+.cap-card p {
+  font-size: 12px;
+  color: var(--ink-dim);
+  line-height: 1.5;
+}
+
+/* === CTA === */
+.cta {
+  max-width: 640px;
+  margin: 0 auto;
+  padding: 48px 24px 72px;
+  text-align: center;
+}
+.cta h2 {
+  font-family: var(--font-display);
+  font-size: clamp(22px, 4vw, 32px);
+  font-weight: 700;
+  margin-bottom: 10px;
+}
+.cta p {
+  font-size: 15px;
+  color: var(--ink-dim);
+  max-width: 400px;
+  margin: 0 auto 24px;
+  line-height: 1.7;
+}
+.cta-btn {
+  display: inline-block;
+  background: linear-gradient(135deg, var(--accent), var(--accent-warm));
+  color: #fff;
+  padding: 14px 40px;
+  border-radius: var(--radius);
+  font-size: 15px;
+  font-weight: 600;
+  text-decoration: none;
+  transition: opacity 0.2s, transform 0.15s;
+}
+.cta-btn:hover { opacity: 0.9; transform: translateY(-1px); }
+.cta-note {
+  margin-top: 14px;
+  font-size: 12px;
+  color: var(--ink-mut);
+}
+
+.footer {
+  border-top: 1px solid var(--border);
+  padding: 16px 20px;
+  text-align: center;
+  font-size: 10px;
+  color: var(--ink-mut);
+}
+
+@media (max-width: 600px) {
+  .wave-container { flex-direction: column; gap: 12px; }
+  .wave-info { text-align: center; }
+  .cap-grid { grid-template-columns: 1fr 1fr; }
+}
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <span class="brand">SONGSCRIBE AI</span>
+  <span class="for">Personalized Demo for Marcus</span>
+</div>
+
+<div class="hero reveal" id="hero">
+  <div class="tag-row" style="display:flex;justify-content:center;"><span class="hero-tag">AI Music Agent</span></div>
+  <h1>Make a track in <span class="gradient">60 seconds</span>.<br>Make it go viral in <span class="gradient">7 days</span>.</h1>
+  <p>SongScribe writes, produces, and builds your launch strategy. Here's what it made for you.</p>
+</div>
+
+<!-- Waveform Visualizer -->
+<div class="visualizer reveal">
+  <div class="wave-container">
+    <div class="wave-bars" id="waveBars"></div>
+    <div class="wave-info">
+      <div class="title">"Midnight Signal"</div>
+      <div class="meta">Lo-fi R&B · 82 BPM · 2:34</div>
+    </div>
+  </div>
+  <div class="wave-controls">
+    <button class="wave-btn primary" onclick="togglePlay()">▶ Play Preview</button>
+    <button class="wave-btn">Regenerate</button>
+    <button class="wave-btn">Export WAV</button>
+  </div>
+</div>
+
+<!-- Agent Demo Chat -->
+<div class="demo-section" id="demo">
+  <div class="demo-label">What Your AI Agent Does</div>
+  <div class="chat-window">
+    <div class="chat-header">
+      <div class="chat-dot"></div>
+      <span>SongScribe Agent — Online</span>
+    </div>
+    <div class="chat-body">
+
+      <div class="msg msg-user">
+        <div class="msg-avatar">M</div>
+        <div class="msg-content">
+          I made a lo-fi R&B track called "Midnight Signal." How do I get it heard?
+        </div>
+      </div>
+
+      <div class="msg">
+        <div class="msg-avatar">✦</div>
+        <div class="msg-content">
+          <strong>I analyzed your track and built a 7-day viral plan.</strong><br><br>
+          Your track has a <span class="highlight">strong hook at 0:12</span> and a <span class="highlight">mood shift at 1:04</span>. Both are perfect for short-form clips. Here's your launch:
+          <div class="plan-card">
+            <h4>Day 1-2: TikTok Hook Drop</h4>
+            <p>Clip the 12-second hook. Add text: "This is what 3am sounds like." Post at 9pm EST. Same clip on Reels.</p>
+          </div>
+          <div class="plan-card">
+            <h4>Day 3-4: Behind the Process</h4>
+            <p>Screen-record the AI generating the beat. Caption: "I told an AI to make a lo-fi R&B track. It nailed it." This format gets 3x saves.</p>
+          </div>
+          <div class="plan-card">
+            <h4>Day 5-7: Engagement Loop</h4>
+            <p>Duet/stitch reactions to your own track. Ask: "What would you add?" Comments boost algorithmic reach by 40%.</p>
+          </div>
+          <div class="tag-row">
+            <span class="tag">#lofi</span>
+            <span class="tag">#rnb</span>
+            <span class="tag">#3amvibes</span>
+            <span class="tag">#aimusic</span>
+            <span class="tag">#midnightsignal</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="msg msg-user">
+        <div class="msg-avatar">M</div>
+        <div class="msg-content">
+          What about Spotify and Apple Music?
+        </div>
+      </div>
+
+      <div class="msg">
+        <div class="msg-avatar">✦</div>
+        <div class="msg-content">
+          <strong>Already handled.</strong><br><br>
+          I drafted your <span class="highlight">DistroKid submission</span> with optimized metadata. Your track description targets "lo-fi R&B 2026" and "study beats." I also generated:<br>
+          <ul>
+            <li><strong>Canvas video</span></strong> for Spotify (8-second loop of the waveform)</li>
+            <li><strong>Playlist pitch text</strong> for 12 editorial playlists</li>
+            <li><strong>SmartLink page</span></strong> with all platform links</li>
+          </ul>
+          <div class="plan-card">
+            <h4>Predicted Streams (30 days)</h4>
+            <p>Conservative: 2,400 streams · With viral plan: 8,000-15,000 streams</p>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<!-- Capabilities -->
+<div class="caps reveal" id="caps">
+  <div class="demo-label">What SongScribe Does</div>
+  <div class="cap-grid">
+    <div class="cap-card">
+      <div class="cap-icon">🎵</div>
+      <h4>Generate Tracks</h4>
+      <p>Describe a vibe. Get a produced track in 60 seconds. Full stems included.</p>
+    </div>
+    <div class="cap-card">
+      <div class="cap-icon">📱</div>
+      <h4>Viral Strategy</h4>
+      <p>Platform-specific posting plans with hooks, captions, and hashtags.</p>
+    </div>
+    <div class="cap-card">
+      <div class="cap-icon">📊</div>
+      <h4>Stream Analytics</h4>
+      <p>Predicted streams, playlist targeting, and release timing optimization.</p>
+    </div>
+    <div class="cap-card">
+      <div class="cap-icon">🎨</div>
+      <h4>Visual Assets</h4>
+      <p>Album art, Spotify Canvas, and short-form video clips generated automatically.</p>
+    </div>
+  </div>
+</div>
+
+<!-- CTA -->
+<div class="cta reveal" id="action">
+  <h2>Want your own agent?</h2>
+  <p>Reply to the email and I'll build you a free track plus a 7-day viral plan. No commitment.</p>
+  <a href="mailto:brave.sharon@gmail.com?subject=Build%20my%20music%20agent" class="cta-btn">Reply to get started</a>
+  <p class="cta-note">Free track. Free strategy. Just reply.</p>
+</div>
+
+<div class="footer">
+  Prepared by Sharon Lijo · AI Consultant for Top Performers · brave.sharon@gmail.com
+</div>
+
+<script>
+// Generate waveform bars
+const container = document.getElementById('waveBars');
+for (let i = 0; i < 60; i++) {
+  const bar = document.createElement('div');
+  bar.className = 'wave-bar';
+  const h = Math.random() * 30 + 4;
+  bar.style.setProperty('--h', h + 'px');
+  bar.style.animationDelay = (i * 0.05) + 's';
+  container.appendChild(bar);
+}
+
+// Scroll reveal
+const observer = new IntersectionObserver((entries) => {
+  entries.forEach(e => { if (e.isIntersecting) e.target.classList.add('visible'); });
+}, { threshold: 0.12 });
+document.querySelectorAll('.reveal').forEach(el => observer.observe(el));
+document.getElementById('hero').classList.add('visible');
+
+// Play button toggle
+let playing = false;
+function togglePlay() {
+  playing = !playing;
+  const bars = document.querySelectorAll('.wave-bar');
+  bars.forEach(b => {
+    b.style.animationPlayState = playing ? 'running' : 'paused';
+  });
+}
+// Start paused
+document.querySelectorAll('.wave-bar').forEach(b => b.style.animationPlayState = 'paused');
+</script>
+
+</body>
+</html>
